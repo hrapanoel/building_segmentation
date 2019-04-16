@@ -34,7 +34,13 @@ def get_crop_shape(row, which):
 	return out_img.shape
 
 def splitImageIntoCells(filename, tileSize=224):
-	'''Takes a Rasterio dataset and splits it into squares of dimensions tileSize * tileSize'''
+	"""Takes a Rasterio dataset and splits it into squares of dimensions tileSize * tileSize.
+	Args:
+		filename: path to tiff image
+		tileSize: the tile size
+	Returns:
+		A list of polygons in world coordinate
+	"""
 	tiles = []
 	with rasterio.open(filename) as src:
 		width = src.width
@@ -48,15 +54,31 @@ def splitImageIntoCells(filename, tileSize=224):
 	return tiles
                 
 def getTileGeom(transform, x, y, squareDim):
-	'''Generate a bounding box from the pixel-wise coordinates using the original
-	 datasets transform property'''
+	"""Generate a bounding box from the pixel-wise coordinates using the original
+	 datasets transform property.
+	 Args:
+	 	transform: affine transform object
+	 	x: x coordinate of upper-left corner
+	 	y: y coordinate of upper-left corner
+	 	squareDim:
+	 Returns:
+	 	Polygon
+	 """
+
 	corner1 = (x, y) * transform
 	corner2 = (x + squareDim, y + squareDim) * transform
 	return geometry.box(corner1[0], corner1[1],
 		corner2[0], corner2[1])
 
 def tile_dataframe(filepath, crs, tileSize=224):
-	''''''
+	'''Create geopandas dataframe containing tiles.
+	Args:
+		filepath: path to tiff image
+		crs: coordinate system
+		tileSize: tile size
+	Returns:
+		Geopandas dataframe containing all the tiles in an image
+	'''
 	print("tile_dataframe", tileSize)
 	tiles_geom = splitImageIntoCells(filepath, tileSize)
 	#create an empty GeoDataFrame
@@ -68,19 +90,38 @@ def tile_dataframe(filepath, crs, tileSize=224):
 	return tile_data
 
 def get_extent(filepath):
-	'''Set the bounds of the crop box (bounds of the tiff image)'''
+	'''Set the bounds of the crop box (bounds of the tiff image).
+	Args:
+		filepath: path to tiff image
+	Returns:
+		Polygon bounds of the tiff image in world coordinate
+	'''
 	with rasterio.open(filepath) as src:
 		xmin, xmax, ymin, ymax = src.bounds.left, src.bounds.right, src.bounds.bottom, src.bounds.top 
 		bounds = Polygon( [(xmin,ymin), (xmin, ymax), (xmax, ymax), (xmax,ymin)] )
 		return bounds
 
 def get_corresponding_mask(image_path):
-	'''Get the mask file path corresponding to the image path'''
+	'''Get the mask file path corresponding to the image path.
+	Args:
+		image_path: path to image
+	Returns:
+		Path to mask file corresponding to the image
+	'''
 	file_name = os.path.basename(image_path)
 	return join(MASK_BASE_PATH, file_name)
 
-def create_train(crs, bounds, tile_data, train_area_shapefile ):
-	'''Create training geo dataframe'''
+def create_train(train_area_shapefile, crs, bounds, tile_data ):
+	'''Create training geo dataframe containing polygons for tiles corresponding to train area.
+	Args:
+		train_area_shapefile: path to train area shapefile
+		crs: coordinate system
+		bounds: polygon bounds of the image
+		tile_data: Geopandas dataframe containing polygons for tiles in image
+	Returns:
+		Geopandas dataframe containing polygons for tiles corresponding to train area
+	'''
+
 	# Crop train area and take the part inside the bounding box
 	train_area_crop_geom = gpd.read_file(train_area_shapefile)
 	train_area_crop_geom.crs = crs
@@ -95,8 +136,16 @@ def create_train(crs, bounds, tile_data, train_area_shapefile ):
 	train_tiles['mask_path'] = train_tiles['filepath'].map(get_corresponding_mask)
 	return train_tiles
 
-def create_test(crs, tile_data, train_tiles, land_parcels_shp):
-	'''Create test geo dataframe'''
+def create_test(land_parcels_shp, crs, tile_data, train_tiles):
+	'''Create test geo dataframe containing polygons for tiles corresponding to train area.
+	Args:
+		land_parcels_shp: path to train area shapefile
+		crs: coordinate system
+		tile_data: Geopandas dataframe containing polygons for tiles in image
+		train_tiles: Geopandas dataframe containing polygons for tiles corresponding to train area
+	Returns:
+		Geopandas dataframe containing polygons for tiles corresponding to test area
+	'''
 	land_parcels_geom = gpd.read_file(land_parcels_shp)
 	land_parcels_geom.crs = crs
 	# part of tile_data but not in train_tiles
@@ -107,7 +156,16 @@ def create_test(crs, tile_data, train_tiles, land_parcels_shp):
 	return unique_test_tiles
 
 def create_train_test(filepath, train_area_shapefile, land_parcels_shp, crs, tileSize):
-	'''Create train and test geopanda dataframe for one image'''
+	'''Create train and test geopanda dataframe for one image
+	Args:
+		filepath: path to tiff image
+		train_area_shapefile: train area shapefile
+		land_parcels_shp: land parcel shapefile
+		crs: coordinate system
+		tileSize: tile size
+	Returns:
+		Tuple of geopandas dataframe corresponding to train and test tiles
+	'''
 	tiles = tile_dataframe(filepath, crs)
 	bounds = get_extent(filepath)
 	train = create_train(train_area_shapefile, crs, bounds, tiles)
@@ -115,7 +173,16 @@ def create_train_test(filepath, train_area_shapefile, land_parcels_shp, crs, til
 	return train, test
 
 def write_shp(df_list, crs, tileSize, output_base, set_type):
-	'''Write a list of dataframes to a shapefile'''
+	'''Write a list of dataframes to a shapefile
+	Args:
+		df_list: list of geopandas dataframe
+		crs: coordinate system
+		tileSize: tile size
+		output_base: base path for output file
+		set_type: train or test
+	Returns:
+		Write geopandas dataframe to shapefile
+	'''
 	gpd_df = gpd.GeoDataFrame(pd.concat(df_list, ignore_index=True), crs=crs)
 	filename = set_type + "_" + str(tileSize) + ".shp"
 	outfile = join(output_base, "tiles_"+filename)
@@ -125,7 +192,8 @@ def write_shp(df_list, crs, tileSize, output_base, set_type):
 def create_shp_train_test(dir_path=INPUT_PATH, train_area_shapefile=TRAIN_AREA_SHAPEFILE, 
 	land_parcels_shp=LAND_PARCELS_SHAPEFILE, crs=crs_data, tileSize=224,
 	output_base=OUTPUT_SHP_TILES_BASE):
-	'''Create train and test shapefile files containing path to image and tiles location (polygon)'''
+	'''Create train and test shapefile files containing path to image and tiles location (polygon)
+	'''
 	train_df_list = []
 	test_df_list = []
 	file_list = files_absolute_path(dir_path)
@@ -137,7 +205,8 @@ def create_shp_train_test(dir_path=INPUT_PATH, train_area_shapefile=TRAIN_AREA_S
 	write_shp(test_df_list, crs, tileSize, output_base, "test")
 
 def create_shp( dir_path=INPUT_PATH, crs=crs_data, tileSize=224, output_base=OUTPUT_SHP_TILES_BASE):
-	'''Create all tiles for images'''
+	'''Create all tiles for images
+	'''
 	df_list = []
 	file_list = files_absolute_path(dir_path)
 	for filepath in file_list:
@@ -163,5 +232,3 @@ def main():
 
 if __name__ == "__main__":
 	main()
-# create dataframe
-#filepath = "drive/My Drive/UPDLI/AP/2018_Feb_8cm_W46C_2.tif"
