@@ -15,7 +15,8 @@ from utils import files_absolute_path
 
 MASK_BASE_PATH = "/home/holy/internship/UPDLI/masks/"
 INPUT_PATH = "/home/holy/internship/UPDLI/resized/"
-OUTPUT_SHP_TILES_BASE = "/home/holy/internship/shapefiles/tiles"
+#OUTPUT_SHP_TILES_BASE = "/home/holy/internship/shapefiles/all_tiles"
+OUTPUT_SHP_TILES_BASE = "/home/holy/internship/shapefiles/train_test_tiles"
 TRAIN_AREA_SHAPEFILE = "/home/holy/internship/shapefiles/train_area/train_area.shp"
 LAND_PARCELS_SHAPEFILE = "/home/holy/internship/shapefiles/land_parcels/land_parcels.shp"
 crs_data = {'ellps': 'WGS84',
@@ -79,7 +80,6 @@ def tile_dataframe(filepath, crs, tileSize=224):
 	Returns:
 		Geopandas dataframe containing all the tiles in an image
 	'''
-	print("tile_dataframe", tileSize)
 	tiles_geom = splitImageIntoCells(filepath, tileSize)
 	#create an empty GeoDataFrame
 	tile_data = gpd.GeoDataFrame()
@@ -149,11 +149,14 @@ def create_test(land_parcels_shp, crs, tile_data, train_tiles):
 	land_parcels_geom = gpd.read_file(land_parcels_shp)
 	land_parcels_geom.crs = crs
 	# part of tile_data but not in train_tiles
-	tiles_difference = gpd.overlay(tile_data, train_tiles, how='difference')
-	test_tiles = gpd.sjoin(tiles_difference, land_parcels_geom, op='intersects', how='inner') #tiles are repeated here
-	#drop duplicated tiles
-	unique_test_tiles = test_tiles[~test_tiles.index.duplicated(keep='first')]
-	return unique_test_tiles
+	if len(train_tiles)>0:
+		tiles_difference = gpd.overlay(tile_data, train_tiles, how='difference')
+		test_tiles = gpd.sjoin(tiles_difference, land_parcels_geom, op='intersects', how='inner') #tiles are repeated here
+		#drop duplicated tiles
+		unique_test_tiles = test_tiles[~test_tiles.index.duplicated(keep='first')]
+		return unique_test_tiles
+	else:
+		return tile_data
 
 def create_train_test(filepath, train_area_shapefile, land_parcels_shp, crs, tileSize):
 	'''Create train and test geopanda dataframe for one image

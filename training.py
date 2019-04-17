@@ -1,13 +1,19 @@
 import keras
+import geopandas as gpd
 import numpy as np
 from zf_unet_224_model import ZF_UNET_224, dice_coef_loss, dice_coef
 from sklearn.model_selection import train_test_split
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler, EarlyStopping, ReduceLROnPlateau
+from keras.optimizers import Nadam, Adam, SGD
+from keras.callbacks import History
+import pandas as pd
+from keras.backend import binary_crossentropy
 import rasterio
 from tensorboard import *
 import pickle
 
 keras.backend.set_image_data_format('channels_first')
+TRAIN_SHAPEFILE = "/home/holy/internship/shapefiles/train_test_tiles/tiles_train_224.shp"
 
 class DataGenerator(keras.utils.Sequence):
 	'Generates data for Keras'
@@ -101,21 +107,25 @@ def get_crop(row, which):
 		out_img = src.read(window=((int(np.round(u)),int(np.round(b))),(int(np.round(l)),int(np.round(r)))))
 	return out_img
 
+batch_size = 20
+patience = 50
+epochs = 200
+
 # Generators parameters
 params = {'dim': (224, 224),
-          'batch_size': 20,
+          'batch_size': batch_size,
           'n_channels': 3,
           'n_mask_channels': 1,
          'augment': True,
           'shuffle': True}
 params_validation  = {'dim': (224,224),
-          'batch_size': 20,
+          'batch_size': batch_size,
           'n_channels': 3,
           'n_mask_channels': 1,
          'augment': False,
           'shuffle': True}
 
-train_data = gpd.read_file("drive/My Drive/Colab Notebooks/UPDLI/data/tiles/resized_train_224.shp")
+train_data = gpd.read_file(TRAIN_SHAPEFILE)
 train, validation = train_test_split(train_data, test_size = 0.2, random_state = 27)
 
 training_generator = DataGenerator(train, **params)
@@ -123,7 +133,7 @@ validation_generator = DataGenerator(validation, **params_validation)
 
 keras.backend.clear_session()
 
-weight_path="drive/My Drive/Colab Notebooks/UPDLI/model/batch_20_dim_224_epochs_200_steps_per_epoch_25_1_april_round3.best.hdf5".format('vgg_unet')
+weight_path = "drive/My Drive/Colab Notebooks/UPDLI/model/batch_20_dim_224_epochs_200_steps_per_epoch_25_15_april.best.hdf5".format('vgg_unet')
 checkpoint = ModelCheckpoint(weight_path, monitor='val_loss', verbose=1, 
 							save_best_only=True, mode='min', save_weights_only = True)
 
@@ -131,15 +141,17 @@ reduceLROnPlat = ReduceLROnPlateau(monitor='val_loss', factor=0.8, patience=10, 
 									 mode='auto', epsilon=0.0001, cooldown=5, min_lr=0.0001)
 early = EarlyStopping(monitor="val_loss", 
                       mode="min", 
-                      patience=50) 
-callbacks_list = [checkpoint, early, reduceLROnPlat, TensorBoardColabCallback(tbc)]
+                      patience=patience) 
+callbacks_list = [checkpoint, early, reduceLROnPlat]
 
-unet_model = ZF_UNET_224(weights=weight_path)
+pretrained_weight_path="drive/My Drive/Colab Notebooks/UPDLI/model/batch_20_dim_224_epochs_200_steps_per_epoch_25_1_april_round2.best.hdf5"
+unet_model = ZF_UNET_224(weights=pretrained_weight_path)
 unet_model.compile(optimizer=SGD(0.05, momentum=0.001, decay = 1e-6), loss=dice_coef_loss, metrics=[dice_coef])
 history = unet_model.fit_generator(generator=training_generator,
-									steps_per_epoch=25,
-									epochs=200,
+									steps_per_epoch=len(train)//params["batch_size"],
+									epochs=epochs,
 									validation_data=validation_generator,
+									validation_steps=len(validation)//params_validation["batch_size"],
 									callbacks=callbacks_list)
 
 #save weights at end of training
