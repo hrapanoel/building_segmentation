@@ -111,14 +111,15 @@ for file in file_list:
 	with rasterio.open(file, 'r') as ds:
 		image = ds.read()  # read all raster values
 		image_meta = ds.meta.copy()
-		image_meta.update({"driver": "GTiff",
-			"height": image.shape[0],
-			"width": image.shape[1],
-			"transform": ds.transform,
-			"count":1})
+		
 
 	H = image.shape[1]
 	W = image.shape[2]
+	image_meta.update({"driver": "GTiff",
+			"height": H,
+			"width": W,
+			"transform": ds.transform,
+			"count":1})
 
 	prediction = make_prediction_cropped(unet_model, image, initial_size=(224, 224),
 											final_size=(224-20, 224-20),
