@@ -14,3 +14,26 @@ def get_file_name(file_path):
 	"""Return filename without extension"""
 	filename = os.path.basename(file_path)
 	return os.path.splitext(filename)[0]
+
+def get_outfile(file_path, output_path):
+	'''Return the output file path given the input file path and output base path
+	Args:
+		file_path: path to file
+		output_path: base of output file
+	Returns:
+		path to output mask
+	'''
+
+	file_name = os.path.basename(file_path)
+	return join(output_path, file_name)
+
+def save_mask(file_path, mask, meta):
+	'''Save a mask as GeoTif at a given file path
+	Args:
+		file_path: path to save mask to
+		mask: mask
+		meta: metadata associated to mask
+	'''
+
+	with rasterio.open(file_path, "w", **meta) as dest:
+		dest.write(mask.astype(rasterio.uint8, copy=False),1)

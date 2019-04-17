@@ -61,7 +61,3 @@ def simplify(polygon, eps):
 
     epsilon = eps * cv2.arcLength(polygon, closed=True)
     return cv2.approxPolyDP(polygon, epsilon=epsilon, closed=True)
-
-predicted_mask =
-image_denoise = grow(predicted_mask, 10)
-image_grow = denoise(image_denoise, 30)

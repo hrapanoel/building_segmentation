@@ -5,7 +5,7 @@ import fiona
 import numpy as np
 import geopandas as gpd
 from shapely.geometry import Polygon
-from utils import files_absolute_path
+from utils import files_absolute_path, get_outfile, save_mask
 import os
 from os.path import join
 
@@ -22,7 +22,7 @@ def create_masks(bldg_footprints_shp=BUILDING_SHAPEFILE):
 	with fiona.open(bldg_footprints_shp, "r") as shapefile:
 		geoms = [feature["geometry"] for feature in shapefile]
 	for file in files:
-		out_file = get_outfile(file)
+		out_file = get_outfile(file, MASK_BASE_PATH)
 		mask, mask_meta = create_one_mask(file, geoms)
 		save_mask(out_file, mask, mask_meta)
 
@@ -44,27 +44,6 @@ def create_one_mask(file, geom):
 			"count":1})
 	return out_image, out_meta
 
-def get_outfile(file_path):
-	'''Return the mask file path given the image file path
-	Args:
-		file_path: path to file
-	Returns:
-		path to output mask
-	'''
-
-	file_name = os.path.basename(file_path)
-	return join(MASK_BASE_PATH, file_name)
-
-def save_mask(file_path, mask, meta):
-	'''Save a mask as GeoTif at a given file path
-	Args:
-		file_path: path to save mask to
-		mask: mask
-		meta: metadata associated to mask
-	'''
-
-	with rasterio.open(file_path, "w", **meta) as dest:
-		dest.write(mask.astype(rasterio.uint8, copy=False),1)
 
 def main():
 	parser = argparse.ArgumentParser(description="Create masks from footprints shapefile")

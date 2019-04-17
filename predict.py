@@ -16,18 +16,21 @@ from tensorflow import keras
 import random
 from keras import backend as K
 import keras
-from keras.optimizers import Nadam, Adam, SGD
-from keras.callbacks import History
+from keras.optimizers import SGD
 import pandas as pd
-from keras.backend import binary_crossentropy
-from keras.callbacks import EarlyStopping, ModelCheckpoint
-from zf_unet_224_model import ZF_UNET_224, dice_coef_loss, dice_coef
+from zf_unet_224_model import ZF_UNET_224, dice_coef_loss, dice_coef, jacard_coef_loss, jacard_coef
+from utils import files_absolute_path, save_mask, get_outfile
+from postprocessing import grow, denoise
 
 keras.backend.set_image_data_format('channels_first')
-
 keras.backend.clear_session()
 
+INPUT_PATH = "/home/holy/internship/UPDLI/resized/"
+OUTPUT_PREDICTED_MASK = "/home/holy/internship/UPDLI/output/predicted_masks/"
+
 def make_prediction_cropped(model, X_train, initial_size=(224, 224), final_size=(192, 192), num_channels=3, num_masks=1):
+	"""Pad the image, divide into tiles, make predictions and crop predictions. Then stitch all predictions
+	together to form an image."""
 	X_train = X_train/255
 	shift = int((initial_size[0] - final_size[0]) / 2)
     
@@ -102,13 +105,30 @@ def pred_mask(pr, threshold):
 unet_model = ZF_UNET_224(weights="drive/My Drive/Colab Notebooks/UPDLI/model/batch_20_dim_224_epochs_200_steps_per_epoch_25_1_april_round3.best.hdf5")
 unet_model.compile(optimizer=SGD(0.05, momentum=0.001, decay = 1e-6), loss=dice_coef_loss, metrics=[dice_coef])
 
-with rasterio.open('drive/My Drive/Colab Notebooks/UPDLI/data/resized/resized_2018_Feb_8cm_W46A_14.tif', 'r') as ds:
-	image = ds.read()  # read all raster values
 
-H = image.shape[1]
-W = image.shape[2]
+file_list = files_absolute_path(INPUT_PATH)
+for file in file_list:
+	with rasterio.open(file, 'r') as ds:
+		image = ds.read()  # read all raster values
+		image_meta = ds.meta.copy()
+		image_meta.update({"driver": "GTiff",
+			"height": image.shape[0],
+			"width": image.shape[1],
+			"transform": ds.transform,
+			"count":1})
 
-prediction = make_prediction_cropped(unet_model, image, initial_size=(224, 224),
-										final_size=(224-20, 224-20),
-										num_masks=1, num_channels=3)
-predicted_mask = pred_mask(prediction, 0.5)
+	H = image.shape[1]
+	W = image.shape[2]
+
+	prediction = make_prediction_cropped(unet_model, image, initial_size=(224, 224),
+											final_size=(224-20, 224-20),
+											num_masks=1, num_channels=3)
+	predicted_mask = pred_mask(prediction, 0.5)
+
+	# Post-processing
+	image_denoise = grow(predicted_mask, 10)
+	image_grow = denoise(image_denoise, 30)
+
+	# Save predicted mask
+	out_file = get_outfile(file, OUTPUT_PREDICTED_MASK)
+	save_mask(out_file, image_grow, image_meta)

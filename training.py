@@ -1,11 +1,10 @@
 import keras
 import geopandas as gpd
 import numpy as np
-from zf_unet_224_model import ZF_UNET_224, dice_coef_loss, dice_coef
+from zf_unet_224_model import ZF_UNET_224, dice_coef_loss, dice_coef, jacard_coef_loss, jacard_coef
 from sklearn.model_selection import train_test_split
-from keras.callbacks import ModelCheckpoint, LearningRateScheduler, EarlyStopping, ReduceLROnPlateau
-from keras.optimizers import Nadam, Adam, SGD
-from keras.callbacks import History
+from keras.callbacks import ModelCheckpoint, LearningRateScheduler, EarlyStopping, ReduceLROnPlateau, History
+from keras.optimizers import SGD
 import pandas as pd
 from keras.backend import binary_crossentropy
 import rasterio
