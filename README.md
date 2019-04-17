@@ -11,13 +11,13 @@ Before training the model, we need to preprocess the data in order to get an inp
 
 1. **Create masks**
 
-To generate the masks from the aerial images and building footprints shapefile, first set the input and output file directory in ```create_masks.py``` and run
+To generate the masks from the aerial images and building footprints shapefile, first set the input and output file directories in ```create_masks.py``` and run
 
 ```python create_masks.py -shp /path/to/building/footprints/shapefile```
 
 2. **Create train and test area**
 
-First set the necessary path directories in ```create_tiles.py``` and run
+First set the necessary file directories in ```create_tiles.py``` and run
 
 ```python create_tiles.py --tile_type train_test```
 
@@ -26,6 +26,10 @@ This will create two shapefiles train and test containing tiles for training and
 # Train and predict
 
 3. **Train**
+
+First set the training parameters (batch size, number of epochs, learning rate,...), output directory and pretrained weight if using one and run
+
+```python training.py```
 
 4. **Predict**
 
