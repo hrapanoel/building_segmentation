@@ -31,8 +31,9 @@ First set the training parameters (batch size, number of epochs, learning rate,.
 
 ```python training.py```
 
-4. **Predict**
+4. **Prediction and post-processing**
 
-# Results postprocessing
+The code directly does post-processing by filling small holes and removing noise from mask.
 
-5. **Post-processing**
+```python predict.py```
+
