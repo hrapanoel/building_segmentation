@@ -39,7 +39,9 @@ First set the training parameters (batch size, number of epochs, learning rate,.
 
 4. **Prediction and post-processing**
 
-The sliding window idea for prediction was previously used in [this](https://github.com/ternaus/kaggle_dstl_submission) solution for the DSTL Satellite Imagery Feature Detection challenge. The code directly does post-processing by filling small holes and removing noise from mask. This uses codes from the mapbox [RoboSat](https://github.com/mapbox/robosat) pipeline.
+The sliding window idea for prediction was previously used in [this](https://github.com/ternaus/kaggle_dstl_submission) solution for the DSTL Satellite Imagery Feature Detection challenge. 
+
+This code directly does post-processing by filling small holes and removing noise from mask. This uses codes from the mapbox [RoboSat](https://github.com/mapbox/robosat) pipeline.
 
 ```python predict.py```
 
