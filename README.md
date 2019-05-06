@@ -1,3 +1,8 @@
+<p float="center">
+  <img src="/images/true.png" width="400" />
+  <img src="/images/prediction.png" width="400" /> 
+</p>
+
 # Building segmentation from aerial imagery
 Using [ZF_UNET_224](https://github.com/ZFTurbo/ZF_UNET_224_Pretrained_Model) to do building segmentation from aerial imagery.
 
